@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="darkreader-lock" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>记忆宫殿 - Palace of Loci</title>
+	<script type="module" src="https://cdn.jsdelivr.net/gh/steve02081504/js-polyfill@master/index.mjs"></script>
+	<style>
+		:root {
+			--bg: #0a0a0a;
+			--fg: #e0e0e0;
+			--accent: #8b4789;
+			--accent-hover: #6b3569;
+			--border: #2a2a2a;
+			--error: #c44569;
+			--success: #6ab04c;
+		}
+
+		body {
+			margin: 0;
+			padding: 0;
+			background: var(--bg);
+			color: var(--fg);
+			font-family: 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', monospace;
+			height: 100vh;
+			overflow: auto;
+		}
+
+		/* 加载动画 */
+		.spinner {
+			width: 24px;
+			height: 24px;
+			border: 3px solid rgba(255, 255, 255, 0.1);
+			border-radius: 50%;
+			border-top-color: var(--accent);
+			animation: spin 1s ease-in-out infinite;
+			display: inline-block;
+			vertical-align: middle;
+			margin-right: 10px;
+		}
+
+		@keyframes spin {
+			to {
+				transform: rotate(360deg);
+			}
+		}
+
+		/* 状态提示 Toast */
+		#status-toast {
+			position: fixed;
+			top: 24px;
+			right: 24px;
+			background: #2d2d2d;
+			border-left: 4px solid var(--accent);
+			padding: 12px 20px;
+			border-radius: 4px;
+			font-size: 13px;
+			display: none;
+			z-index: 10000;
+			box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+			animation: slideIn 0.3s ease-out;
+		}
+
+		@keyframes slideIn {
+			from {
+				transform: translateX(100%);
+				opacity: 0;
+			}
+
+			to {
+				transform: translateX(0);
+				opacity: 1;
+			}
+		}
+
+		.status-error {
+			border-color: var(--error) !important;
+			color: #ffcccc;
+		}
+
+		.status-info {
+			border-color: var(--accent) !important;
+			color: #fff;
+		}
+
+		/* 初始加载界面 */
+		.loading-screen {
+			display: flex;
+			flex-direction: column;
+			height: 100vh;
+			justify-content: center;
+			align-items: center;
+			color: var(--fg);
+			gap: 15px;
+		}
+
+		.error-screen {
+			display: flex;
+			flex-direction: column;
+			height: 100vh;
+			justify-content: center;
+			align-items: center;
+			color: var(--error);
+			gap: 15px;
+			text-align: center;
+			padding: 20px;
+		}
+	</style>
+</head>
+
+<body>
+	<!-- 状态提示 -->
+	<div id="status-toast"></div>
+
+	<!-- 初始内容 -->
+	<div class="loading-screen">
+		<div class="spinner"></div>
+		<div style="font-family:monospace; opacity:0.7;">正在进入记忆宫殿...</div>
+	</div>
+
+	<!-- 脚本逻辑 -->
+	<script type="module">
+		import { async_eval } from 'https://esm.sh/@steve02081504/async-eval'
+
+		// 获取查询参数
+		const params = new URLSearchParams(window.location.search)
+		const targetCharId = params.get('target')
+
+		if (!targetCharId) {
+			document.body.innerHTML = `
+				<div class="error-screen">
+					<h2>未指定目标角色</h2>
+				</div>
+			`
+			throw new Error('No target specified')
+		}
+
+		const state = {
+			history: [],
+			chat_scoped_char_memory: {},
+			busy: false
+		}
+
+		const els = {
+			toast: document.getElementById('status-toast')
+		}
+
+		// --- 初始化 ---
+
+		/**
+		 * 初始化函数，设置初始历史记录并启动主循环。
+		 */
+		async function init() {
+			// 初始提示词
+			state.history = [
+				{ role: 'system', content: '展示你的记忆宫殿。用可视化的方式呈现你的内心世界、记忆或潜意识。' }
+			]
+
+			await runLoop()
+		}
+
+		// --- 主逻辑 ---
+
+		/**
+		 * 主循环，负责获取用户输入、调用 AI、然后解析并执行 AI 的响应。
+		 */
+		async function runLoop() {
+			if (state.busy) return
+			state.busy = true
+			showToast('正在连接心灵...', false)
+
+			try {
+				// 只要最后一条消息不是 char，就继续调用 AI
+				while (state.history.length > 0 && state.history[state.history.length - 1].role !== 'char') {
+					const responseContent = await fetchAI()
+
+					state.history.push({ role: 'char', content: responseContent })
+					console.log('AI Response:', responseContent)
+
+					showToast('正在显现...', false)
+					await parseAndExecute(responseContent)
+				}
+				hideToast()
+
+			} catch (e) {
+				console.error(e)
+				showToast(`错误: ${e.message}. 5秒后重试...`, true)
+				// 自动重试机制
+				setTimeout(() => {
+					state.busy = false
+					runLoop()
+				}, 5000)
+			} finally {
+				state.busy = false
+			}
+		}
+
+		/**
+		 * 调用后端 API 获取 AI 响应。
+		 * @returns {Promise<string>} AI 的响应内容。
+		 */
+		async function fetchAI() {
+			const apiBase = params.get('api_base') || '/api/chars/Saira'
+			const res = await fetch(`${apiBase}/palace_of_loci/chat`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					target: targetCharId,
+					history: state.history,
+					chat_scoped_char_memory: state.chat_scoped_char_memory
+				})
+			})
+
+			if (!res.ok) {
+				const errorData = await res.json().catch(() => ({}))
+				throw new Error(errorData.error || `API Error: ${res.status}`)
+			}
+
+			const { content, chat_scoped_char_memory } = await res.json()
+			// 更新 chat_scoped_char_memory
+			if (chat_scoped_char_memory)
+				state.chat_scoped_char_memory = chat_scoped_char_memory
+
+
+			return content || ''
+		}
+
+		// --- 执行引擎 ---
+		/**
+		 * 重新激活节点中的 script 和 link 标签。
+		 * @param {Node} node - 要处理的 DOM 节点。
+		 * @returns {Node} - 处理后的 DOM 节点。
+		 */
+		function activateScripts(node) {
+			const root = node.nodeType === Node.DOCUMENT_NODE ? node : node.ownerDocument || document
+			const container = node.nodeType === Node.DOCUMENT_NODE ? node.documentElement : node
+
+			container.querySelectorAll('script').forEach(oldScript => {
+				const newScript = root.createElement('script')
+				for (const { name, value } of oldScript.attributes)
+					newScript.setAttribute(name, value)
+
+				if (oldScript.textContent) newScript.text = oldScript.textContent
+				oldScript.parentNode.replaceChild(newScript, oldScript)
+			})
+			container.querySelectorAll('link').forEach(oldLink => {
+				const newLink = root.createElement('link')
+				for (const { name, value } of oldLink.attributes)
+					newLink.setAttribute(name, value)
+
+				oldLink.parentNode.replaceChild(newLink, oldLink)
+			})
+
+			return node
+		}
+		/**
+		 * 解析并执行文本中的命令（如 <render-html> 和 <execute-js>）。
+		 * @param {string} text - 包含命令的文本。
+		 */
+		async function parseAndExecute(text) {
+			const htmlRegex = /<render-html>([\S\s]*?)<\/render-html>/g
+			const jsRegex = /<execute-js>([\S\s]*?)<\/execute-js>/g
+
+			let hasHtml = false
+			let match
+
+			// 执行 HTML 更新
+			while ((match = htmlRegex.exec(text)) !== null) {
+				hasHtml = true
+				const [, htmlContent] = match
+				requestAnimationFrame(() => {
+					document.body.innerHTML = htmlContent
+					activateScripts(document.body)
+				})
+			}
+
+			// 执行 JS
+			while ((match = jsRegex.exec(text)) !== null) {
+				const [, code] = match
+				if (hasHtml) await new Promise(r => setTimeout(r, 50))
+				await runJsWithAsyncEval(code)
+			}
+		}
+
+		/**
+		 * 使用 async_eval 安全地执行 JavaScript 代码。
+		 * @param {string} code - 要执行的 JavaScript 代码。
+		 */
+		async function runJsWithAsyncEval(code) {
+			try {
+				const { result, error } = await async_eval(code)
+				if (error) {
+					console.error('Script Error:', error)
+					window.trigger(`[System Error]: ${error.message}`)
+				}
+			} catch (e) {
+				window.trigger(`[Critical Execution Error]: ${e.message}`)
+			}
+		}
+
+		// --- 全局交互函数 ---
+
+		/**
+		 * 全局触发器函数，用于从页面向主逻辑发送事件。
+		 * @param {any} data - 要发送的数据。
+		 */
+		window.trigger = async (data) => {
+			console.log('⚡ Trigger:', data)
+
+			let content = ''
+			if (Object(data) instanceof String)
+				content = data
+			else try {
+				content = JSON.stringify(data)
+			} catch (e) {
+				content = String(data)
+			}
+
+			state.history.push({ role: 'system', content: `[Event Triggered]: ${content}` })
+			await runLoop()
+		}
+
+		// --- 工具函数 ---
+
+		/**
+		 * 显示一个状态提示消息。
+		 * @param {string} msg - 要显示的消息。
+		 * @param {boolean} isError - 是否为错误消息。
+		 */
+		function showToast(msg, isError) {
+			if (!els.toast) return
+			els.toast.textContent = msg
+			els.toast.className = isError ? 'status-error' : 'status-info'
+			els.toast.style.display = 'block'
+
+			if (!isError) {
+				if (window.toastTimeout) clearTimeout(window.toastTimeout)
+				window.toastTimeout = setTimeout(hideToast, 4000)
+			}
+		}
+		/**
+		 * 隐藏状态提示消息。
+		 */
+		function hideToast() {
+			if (els.toast) els.toast.style.display = 'none'
+		}
+
+		// 启动
+		init()
+	</script>
+</body>
+
+</html>
