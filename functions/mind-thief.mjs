@@ -1,10 +1,10 @@
 /**
- * @typedef {import('../../../../../../src/public/shells/chat/decl/chatLog.ts').chatLogEntry_t} chatLogEntry_t
- * @typedef {import('../../../../../../src/public/shells/chat/decl/chatLog.ts').chatReplyRequest_t} chatReplyRequest_t
+ * @typedef {import('../../../../../../src/public/parts/shells/chat/decl/chatLog.ts').chatLogEntry_t} chatLogEntry_t
+ * @typedef {import('../../../../../../src/public/parts/shells/chat/decl/chatLog.ts').chatReplyRequest_t} chatReplyRequest_t
  * @typedef {import('../../../../../../src/decl/prompt_struct.ts').prompt_struct_t} prompt_struct_t
  */
 import { getPartInfo } from '../../../../../../src/scripts/locale.mjs'
-import { LoadChar } from '../../../../../../src/server/managers/char_manager.mjs'
+import { loadPart } from '../../../../../../src/server/parts_loader.mjs'
 
 /**
  * 记忆宫殿世界观 - 用于心灵窃贼工具
@@ -156,7 +156,7 @@ export async function mindThief({ content }, { AddLongTimeLog, _prompt_struct, _
 			const { username, locales } = args
 			let targetChar
 			try {
-				targetChar = await LoadChar(username, targetCharId)
+				targetChar = await loadPart(username, 'chars/' + targetCharId)
 				console.info(`[MindThief] 成功加载角色 ${targetCharId}`)
 			} catch (loadError) {
 				console.error('[MindThief] 加载角色失败:', loadError)

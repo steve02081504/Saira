@@ -6,7 +6,7 @@
 一个以“记忆窃贼”和“记忆宫殿”为核心概念的概念验证角色，适用于[fount](https://github.com/steve02081504/fount)。
 萨依拉是一位被精灵诅咒的沙漠扒手少女，拥有窥视人心和洞察“真名”的能力。她是一位冷静、精准的情报处理专家，习惯独来独往，内心深处渴望温暖却又因诅咒而抗拒亲近。
 
-[点此来快速安装/更新](https://steve02081504.github.io/fount/protocol?url=fount://run/shells/install/install;https://github.com/steve02081504/Saira)
+[点此来快速安装/更新](https://steve02081504.github.io/fount/protocol?url=fount://run/shells:install/install;https://github.com/steve02081504/Saira)
 
 ## 功能列表
 
