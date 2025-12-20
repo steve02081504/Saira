@@ -4,7 +4,7 @@
  */
 
 // 导入 Saira 的 charname
-import { defineInlineToolUses } from '../../../../../../src/public/shells/chat/src/stream.mjs'
+import { defineInlineToolUses } from '../../../../../../src/public/parts/shells/chat/src/stream.mjs'
 import { charurl } from '../main.mjs'
 /**
  * 处理记忆宫殿之门的内联工具
