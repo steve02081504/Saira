@@ -1,15 +1,20 @@
 /**
  * @typedef {import('../../../../../src/decl/charAPI.ts').CharAPI_t} CharAPI_t
+ * @typedef {import('../../../../../src/decl/charAPI.ts').charInit_t} charInit_t
  * @typedef {import('../../../../../src/decl/pluginAPI.ts').PluginAPI_t} PluginAPI_t
+ * @typedef {import('../../../../../src/public/parts/shells/chat/decl/chatLog.ts').chatReplyRequest_t} chatReplyRequest_t
+ * @typedef {import('../../../../../src/public/parts/shells/chat/decl/chatLog.ts').chatReply_t} chatReply_t
+ * @typedef {import('../../../../../src/public/parts/shells/chat/decl/chatLog.ts').chatLogEntry_t} chatLogEntry_t
+ * @typedef {import('../../../../../src/public/parts/shells/chat/decl/chatLog.ts').CharReplyPreviewUpdater_t} CharReplyPreviewUpdater_t
  */
 
 import path from 'node:path'
 
-import { buildPromptStruct } from '../../../../../src/public/parts/shells/chat/src/prompt_struct.mjs'
-import { defineToolUseBlocks } from '../../../../../src/public/parts/shells/chat/src/stream.mjs'
+import { buildPromptStruct } from '../../../../../src/public/parts/shells/chat/src/prompt_struct/index.mjs'
+import { defineToolUseBlocks } from '../../../../../src/public/parts/shells/chat/src/streaming/index.mjs'
 import { getPartInfo } from '../../../../../src/scripts/locale.mjs'
-import { getUserByUsername } from '../../../../../src/server/auth.mjs'
-import { loadPart, loadAnyPreferredDefaultPart } from '../../../../../src/server/parts_loader.mjs'
+import { getUserByUsername } from '../../../../../src/server/auth/index.mjs'
+import { loadPart } from '../../../../../src/server/parts_loader.mjs'
 
 import { mindThief, mindPalaceWebWorld } from './functions/mind-thief.mjs'
 import { palaceGateInline, GetPalaceGatePreviewUpdater } from './functions/palace-gate.mjs'
@@ -28,9 +33,7 @@ let username = ''
 
 const chardir = import.meta.dirname
 const charname = path.basename(chardir)
-/**
- *
- */
+/** 角色静态资源 URL 前缀。 */
 export const charurl = `/parts/chars:${encodeURIComponent(charname)}`
 /** @type {CharAPI_t} */
 export default {
@@ -51,80 +54,88 @@ export default {
 `, // 角色的详细介绍，支持Markdown语法
 			version: '0.0.1', // 角色的版本号
 			author: 'steve02081504', // 角色的作者
-			home_page: 'https://steve02081504.github.io/fount/', // fount主页作为示例
-			tags: ['奇幻', '少女', '沙漠', '扒手', '诅咒', '悲情'], // 角色的标签
+			home_page: 'https://github.com/steve02081504/Saira',
+			issue_page: 'https://github.com/steve02081504/Saira/issues',
+			tags: ['奇幻', '少女', '沙漠', '扒手', '诅咒', '悲情'],
 		}
 	},
 
-	// 初始化函数，在角色被启用时调用，可留空
 	/**
-	 *
-	 * @param {object} stat - 状态信息
+	 * 角色启用时的初始化钩子。
+	 * @param {charInit_t} _stat - 角色初始化信息。
+	 * @returns {void}
 	 */
-	Init: stat => { },
+	Init: _stat => { },
 
-	// 安装卸载函数，在角色被安装/卸载时调用，可留空
 	/**
-	 *
-	 * @param {string} reason - 原因
-	 * @param {string} from - 来源
+	 * 角色卸载时的清理钩子。
+	 * @param {string} _reason - 卸载原因。
+	 * @param {string} _from - 卸载来源。
+	 * @returns {void}
 	 */
-	Uninstall: (reason, from) => { },
+	Uninstall: (_reason, _from) => { },
 
-	// 加载函数，在角色被加载时调用，在这里获取用户名和注册路由
 	/**
-	 *
-	 * @param {{username: string, router: object}} stat - 状态信息
+	 * 角色加载时的钩子：注册记忆宫殿 Web 聊天端点。
+	 * @param {charInit_t & { router: import('npm:express').Router }} stat - 角色初始化信息与路由。
+	 * @returns {Promise<void>}
 	 */
 	Load: async stat => {
 		const { username: loadedUsername, router } = stat
 		username = loadedUsername
 
-		// 聊天端点 - 处理 Web 界面的请求
 		router.post(`/api/chars\\:${charname}/palace_of_loci/chat`, async (req, res) => {
 			const { target: targetCharId, history, chat_scoped_char_memory } = req.body
 
 			if (!targetCharId || !history)
 				return res.status(400).json({ error: 'Missing required parameters' })
 
-			// 加载目标角色
 			const targetChar = await loadPart(username, 'chars/' + targetCharId)
 			const targetInfo = await getPartInfo(targetChar, ['zh-CN']).catch(() => ({}))
 			const targetName = targetInfo.name || targetCharId
+			const UserUid = username
+			const CharUid = targetCharId
 
-			// 构建聊天记录
 			const chatLog = [
 				{
 					name: 'system',
 					role: 'system',
+					uid: 'system',
 					content: '记忆宫殿连接已建立。',
-					files: []
+					files: [],
+					time_stamp: new Date(),
+					extension: {},
 				}
 			]
 
-			// 添加历史记录
 			for (const msg of history) {
 				let name = ''
+				let uid = 'system'
 				switch (msg.role) {
 					case 'char':
 						name = targetName
+						uid = CharUid
 						break
 					case 'system':
 						name = 'system'
+						uid = 'system'
 						break
 					case 'user':
 						name = username
+						uid = UserUid
 						break
 				}
 				chatLog.push({
 					name,
 					role: msg.role,
+					uid,
 					content: msg.content,
-					files: []
+					files: [],
+					time_stamp: new Date(),
+					extension: {},
 				})
 			}
 
-			// 构建请求
 			const mindPalaceRequest = {
 				supported_functions: {
 					markdown: false,
@@ -135,21 +146,27 @@ export default {
 					add_message: false,
 					fount_assets: false,
 					fount_i18nkeys: false,
+					fount_themes: false,
 				},
 				chat_name: `mind_palace_${targetCharId}`,
 				char_id: targetCharId,
 				username,
 				Charname: targetName,
+				CharUid,
 				UserCharname: username,
+				UserUid,
 				locales: getUserByUsername(username).locales,
+				time: new Date(),
 				chat_log: chatLog,
+				timelines: [chatLog],
 				world: mindPalaceWebWorld,
 				char: targetChar,
 				user: null,
 				other_chars: {},
 				plugins: {},
 				chat_summary: '',
-				chat_scoped_char_memory
+				chat_scoped_char_memory,
+				extension: {},
 			}
 
 			const aiResponse = await targetChar.interfaces.chat?.GetReply?.(mindPalaceRequest)
@@ -163,10 +180,11 @@ export default {
 	},
 
 	/**
-	 * 卸载函数，在角色被卸载时调用，可留空
-	 * @param {string} reason - 原因
+	 * 角色卸载出内存时的钩子。
+	 * @param {string} _reason - 卸载原因。
+	 * @returns {void}
 	 */
-	Unload: reason => { },
+	Unload: _reason => { },
 
 	// 角色的接口
 	interfaces: {
@@ -181,36 +199,38 @@ export default {
 				plugins: Object.keys(plugins),
 			}),
 			/**
-			 * 设置角色的配置数据
-			 * @param {{AIsource: string, plugins: string[]}} data - 配置数据
+			 * 设置角色的配置数据。
+			 * @param {{AIsource: string, plugins: string[]}} data - 配置数据。
+			 * @returns {Promise<void>}
 			 */
 			SetData: async data => {
-				// 如果传入了AI源的配置
-				if (data.AIsource) AIsource = await loadPart(username, 'serviceSources/AI/' + data.AIsource) // 加载AI源
-				else AIsource = await loadAnyPreferredDefaultPart(username, 'serviceSources/AI') // 或加载默认AI源（若未设置默认AI源则为undefined）
+				if ('AIsource' in data)
+					AIsource = data.AIsource
+						? await loadPart(username, 'serviceSources/AI/' + data.AIsource)
+						: null
 				if (data.plugins) plugins = Object.fromEntries(await Promise.all(data.plugins.map(async x => [x, await loadPart(username, 'plugins/' + x)])))
 			}
 		},
 		// 角色的聊天接口
 		chat: {
 			/**
-			 * 获取角色的开场白
-			 * @param {any} _arg - 未使用的参数
-			 * @param {number} index - 问候语索引
-			 * @returns {{content: string}} 问候语
+			 * 获取角色开场白。
+			 * @param {chatReplyRequest_t} _arg - 聊天回复请求。
+			 * @param {number} index - 开场白索引。
+			 * @returns {chatReply_t} 开场白回复。
 			 */
 			GetGreeting: (_arg, index) => [{ content: '（抬起眼眸，目光如锐刃）又见面了。我在想，你这次是真心的还是…… 又在演戏。' }, { content: '夜色将至，小心你的荷包…… 以及你的心。' }, { content: '（沉默地注视着你，仿佛能看穿你的全部秘密）' }][index],
 			/**
-			 * 获取角色在群组中的问好
-			 * @param {any} _arg - 未使用的参数
-			 * @param {number} index - 问候语索引
-			 * @returns {{content: string}} 问候语
+			 * 获取角色加入群聊时的问候。
+			 * @param {chatReplyRequest_t} _arg - 聊天回复请求。
+			 * @param {number} index - 问候索引。
+			 * @returns {chatReply_t} 群组问候回复。
 			 */
 			GetGroupGreeting: (_arg, index) => [{ content: '（悄无声息地融入了人群，眼神警惕地扫视着周围）' }, { content: '又是一个…… 充满了痛楚和秘密的地方。' }, { content: '（从暗处走出，手指轻轻摩挲着腰间的匕首）' }][index],
 			/**
-			 * 获取角色的提示词
-			 * @param {object} args - 参数
-			 * @returns {Promise<object>} Prompt 对象
+			 * 获取角色自身提示词。
+			 * @param {chatReplyRequest_t} args - 聊天回复请求。
+			 * @returns {Promise<{ text: { content: string, important: number }[], additional_chat_log: never[], extension: object }>} 提示结构。
 			 */
 			GetPrompt: async (args) => {
 				// 检测是否在群聊中
@@ -287,34 +307,28 @@ ${otherCharsInfo}
 				}
 			},
 			/**
-			 * 获取其他角色看到的该角色的设定，群聊时生效
-			 * @param {object} _args - 未使用的参数
-			 * @returns {{text: object[], additional_chat_log: never[], extension: {}}} Prompt 对象
+			 * 获取其他角色视角下的该角色设定。
+			 * @param {chatReplyRequest_t} _args - 聊天回复请求。
+			 * @returns {{ text: { content: string, important: number }[], additional_chat_log: never[], extension: object }} 他者视角提示。
 			 */
-			GetPromptForOther: (_args) => {
-				return {
-					text: [{
-						content: '萨依拉：一个身负精灵诅咒的扒手少女，拥有窥视人心的匕首和看破真名的能力，却注定孤独。',
-						important: 0
-					}],
-					additional_chat_log: [],
-					extension: {},
-				}
-			},
+			GetPromptForOther: (_args) => ({
+				text: [{
+					content: '萨依拉：一个身负精灵诅咒的扒手少女，拥有窥视人心的匕首和看破真名的能力，却注定孤独。',
+					important: 0
+				}],
+				additional_chat_log: [],
+				extension: {},
+			}),
 			/**
-			 * 获取角色的回复
-			 * @param {object} args - 参数
-			 * @returns {Promise<import("../../../../../src/public/parts/shells/chat/decl/chatLog.ts").chatReply_t>} 回复对象
+			 * 基于对话日志生成回复。
+			 * @param {chatReplyRequest_t} args - 聊天回复请求。
+			 * @returns {Promise<chatReply_t>} 回复内容。
 			 */
 			GetReply: async args => {
-				// 如果没有设置AI源，返回默认回复
 				if (!AIsource) return { content: '我……无法给出回复。我的声音，仿佛被什么东西束缚住了。或许，你需要为我连接[AI来源](https://steve02081504.github.io/fount/protocol?url=fount://page/parts/shells:serviceSourceManage)才能让我真正地“活”起来。' }
-				// 注入角色插件
 				args.plugins = Object.assign({}, plugins, args.plugins)
-				// 用fount提供的工具构建提示词结构
 				const prompt_struct = await buildPromptStruct(args)
-				// 创建回复容器
-				/** @type {import("../../../../../src/public/parts/shells/chat/decl/chatLog.ts").chatReply_t} */
+				/** @type {chatReply_t} */
 				const result = {
 					content: '',
 					logContextBefore: [],
@@ -323,23 +337,23 @@ ${otherCharsInfo}
 					extension: {},
 				}
 				/**
-				 * 构建插件可能需要的追加上下文函数
-				 * @param {import("../../../../../src/public/parts/shells/chat/decl/chatLog.ts").chatLogEntry_t} entry - 日志条目
+				 * 向结果与 prompt 追加长期上下文。
+				 * @param {chatLogEntry_t} entry - 日志条目。
+				 * @returns {void}
 				 */
 				function AddLongTimeLog(entry) {
 					entry.charVisibility = [args.char_id]
+					entry.uid ??= entry.role === 'user' ? args.UserUid : entry.role === 'char' ? args.CharUid : 'system'
 					result?.logContextBefore?.push?.(entry)
 					prompt_struct.char_prompt.additional_chat_log.push(entry)
 				}
-				// 构建更新预览管线
 				args.generation_options ??= {}
 				const oriReplyPreviewUpdater = args.generation_options?.replyPreviewUpdater
 				/**
 				 * 聊天回复预览更新管道。
-				 * @type {import('../../../../../src/public/parts/shells/chat/decl/chatLog.ts').CharReplyPreviewUpdater_t}
-				 * @returns {any} 预览更新管道
+				 * @type {CharReplyPreviewUpdater_t}
 				 */
-				let replyPreviewUpdater = (args, r) => oriReplyPreviewUpdater?.(r)
+				let replyPreviewUpdater = (req, r) => oriReplyPreviewUpdater?.(r)
 				for (const GetReplyPreviewUpdater of [
 					await GetPalaceGatePreviewUpdater(),
 					defineToolUseBlocks([
@@ -350,12 +364,11 @@ ${otherCharsInfo}
 					replyPreviewUpdater = GetReplyPreviewUpdater(replyPreviewUpdater)
 
 				/**
-				 * @param {any} r - 局部响应
-				 * @returns {any} 预览更新管道
+				 * @param {chatReply_t} r - 局部响应。
+				 * @returns {void}
 				 */
 				args.generation_options.replyPreviewUpdater = r => replyPreviewUpdater(args, r)
 
-				// 在重新生成循环中检查插件触发
 				regen: while (true) {
 					args.generation_options.base_result = result
 					await AIsource.StructCall(prompt_struct, args.generation_options)
@@ -370,7 +383,6 @@ ${otherCharsInfo}
 					if (continue_regen) continue regen
 					break
 				}
-				// 返回构建好的回复
 				return result
 			}
 		}

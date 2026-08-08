@@ -1,4 +1,5 @@
 {
 	"type": "chars",
-	"dirname": "Saira"
+	"dirname": "Saira",
+	"CI-file": ".github/workflows/CI.mjs"
 }

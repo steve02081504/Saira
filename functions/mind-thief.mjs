@@ -134,15 +134,11 @@ export async function mindThief({ content }, { AddLongTimeLog, _prompt_struct, _
 	for (const match of matches) {
 		const { target, query } = match.groups
 
-		if (!target || !query?.trim()) {
-			console.warn('Received <mind-thief> tag with empty target or query.')
-			continue
-		}
+		if (!target || !query?.trim()) continue
 
 		const targetCharId = target.trim()
 		const queryContent = query.trim()
 
-		// 记录工具调用
 		AddLongTimeLog({
 			name: '萨依拉',
 			role: 'char',
@@ -150,19 +146,18 @@ export async function mindThief({ content }, { AddLongTimeLog, _prompt_struct, _
 			files: []
 		})
 
-		console.info(`[MindThief] 萨依拉尝试窥视 ${targetCharId} 的心灵，询问：${queryContent}`)
-
 		try {
-			const { username, locales } = args
+			const { username, locales, UserUid } = args
 			let targetChar
 			try {
 				targetChar = await loadPart(username, 'chars/' + targetCharId)
-				console.info(`[MindThief] 成功加载角色 ${targetCharId}`)
-			} catch (loadError) {
+			}
+			catch (loadError) {
 				console.error('[MindThief] 加载角色失败:', loadError)
 				AddLongTimeLog({
 					name: 'mind-thief',
 					role: 'tool',
+					uid: 'system',
 					content: `错误：无法找到或加载真名为"${targetCharId}"的角色。\n可能的原因：\n- 真名拼写错误\n- 该角色不存在\n- 没有访问权限`,
 					files: []
 				})
@@ -170,43 +165,57 @@ export async function mindThief({ content }, { AddLongTimeLog, _prompt_struct, _
 				continue
 			}
 
-			// 获取目标角色的显示名称
 			const targetInfo = await getPartInfo(targetChar, locales).catch(() => ({}))
 			const targetDisplayName = targetInfo.name || targetCharId
+			const CharUid = targetCharId
+			const chat_log = [
+				{
+					name: '记忆宫殿',
+					role: 'system',
+					uid: 'system',
+					content: '欢迎来到你的记忆宫殿。',
+					files: [],
+					time_stamp: new Date(),
+					extension: {},
+				},
+				{
+					name: '萨依拉的质问',
+					role: 'char',
+					uid: args.CharUid || 'saira',
+					content: queryContent,
+					files: [],
+					time_stamp: new Date(),
+					extension: {},
+				}
+			]
 
-			// 构建虚拟的聊天请求 - 让目标角色在记忆宫殿中回答
 			const mindPalaceRequest = {
 				...args,
 				char_id: targetCharId,
 				char: targetChar,
 				Charname: targetDisplayName,
+				CharUid,
+				UserUid: UserUid || args.username || 'user',
 				world: mindPalaceWorld,
-				other_chars: {}, // 记忆宫殿中只有目标自己
-				chat_log: [
-					{
-						name: '记忆宫殿',
-						role: 'system',
-						content: '欢迎来到你的记忆宫殿。',
-						files: []
-					},
-					{
-						name: '萨依拉的质问',
-						role: 'char',
-						content: queryContent,
-						files: []
-					}
-				]
+				other_chars: {},
+				time: new Date(),
+				chat_log,
+				timelines: [chat_log],
+				extension: { ...args.extension },
+				supported_functions: {
+					...args.supported_functions,
+					fount_themes: args.supported_functions?.fount_themes ?? false,
+				},
 			}
 
-			// 调用 AI 获取目标角色的内心回答
 			const mindResponse = await targetChar.interfaces?.chat?.GetReply?.(mindPalaceRequest)
 
-			// 返回窥视结果
 			const responseContent = mindResponse.content?.trim() || '（沉默，没有回应）'
 
 			AddLongTimeLog({
 				name: 'mind-thief',
 				role: 'tool',
+				uid: 'system',
 				content: `\
 **窥视 ${targetDisplayName}（${targetCharId}）的记忆宫殿**
 
@@ -221,11 +230,13 @@ ${responseContent}
 			})
 
 			processed = true
-		} catch (err) {
+		}
+		catch (err) {
 			console.error('[MindThief] Error:', err)
 			AddLongTimeLog({
 				name: 'mind-thief',
 				role: 'tool',
+				uid: 'system',
 				content: `心灵窃贼能力使用失败：\n${err.message || err}。`,
 				files: []
 			})
