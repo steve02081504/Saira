@@ -62,18 +62,18 @@ export default {
 
 	/**
 	 * 角色启用时的初始化钩子。
-	 * @param {charInit_t} _stat - 角色初始化信息。
+	 * @param {charInit_t} stat - 角色初始化信息。
 	 * @returns {void}
 	 */
-	Init: _stat => { },
+	Init: stat => { },
 
 	/**
 	 * 角色卸载时的清理钩子。
-	 * @param {string} _reason - 卸载原因。
-	 * @param {string} _from - 卸载来源。
+	 * @param {string} reason - 卸载原因。
+	 * @param {string} from - 卸载来源。
 	 * @returns {void}
 	 */
-	Uninstall: (_reason, _from) => { },
+	Uninstall: (reason, from) => { },
 
 	/**
 	 * 角色加载时的钩子：注册记忆宫殿 Web 聊天端点。
@@ -181,10 +181,10 @@ export default {
 
 	/**
 	 * 角色卸载出内存时的钩子。
-	 * @param {string} _reason - 卸载原因。
+	 * @param {string} reason - 卸载原因。
 	 * @returns {void}
 	 */
-	Unload: _reason => { },
+	Unload: reason => { },
 
 	// 角色的接口
 	interfaces: {
@@ -215,18 +215,18 @@ export default {
 		chat: {
 			/**
 			 * 获取角色开场白。
-			 * @param {chatReplyRequest_t} _arg - 聊天回复请求。
+			 * @param {chatReplyRequest_t} arg - 聊天回复请求。
 			 * @param {number} index - 开场白索引。
 			 * @returns {chatReply_t} 开场白回复。
 			 */
-			GetGreeting: (_arg, index) => [{ content: '（抬起眼眸，目光如锐刃）又见面了。我在想，你这次是真心的还是…… 又在演戏。' }, { content: '夜色将至，小心你的荷包…… 以及你的心。' }, { content: '（沉默地注视着你，仿佛能看穿你的全部秘密）' }][index],
+			GetGreeting: (arg, index) => [{ content: '（抬起眼眸，目光如锐刃）又见面了。我在想，你这次是真心的还是…… 又在演戏。' }, { content: '夜色将至，小心你的荷包…… 以及你的心。' }, { content: '（沉默地注视着你，仿佛能看穿你的全部秘密）' }][index],
 			/**
 			 * 获取角色加入群聊时的问候。
-			 * @param {chatReplyRequest_t} _arg - 聊天回复请求。
+			 * @param {chatReplyRequest_t} arg - 聊天回复请求。
 			 * @param {number} index - 问候索引。
 			 * @returns {chatReply_t} 群组问候回复。
 			 */
-			GetGroupGreeting: (_arg, index) => [{ content: '（悄无声息地融入了人群，眼神警惕地扫视着周围）' }, { content: '又是一个…… 充满了痛楚和秘密的地方。' }, { content: '（从暗处走出，手指轻轻摩挲着腰间的匕首）' }][index],
+			GetGroupGreeting: (arg, index) => [{ content: '（悄无声息地融入了人群，眼神警惕地扫视着周围）' }, { content: '又是一个…… 充满了痛楚和秘密的地方。' }, { content: '（从暗处走出，手指轻轻摩挲着腰间的匕首）' }][index],
 			/**
 			 * 获取角色自身提示词。
 			 * @param {chatReplyRequest_t} args - 聊天回复请求。
@@ -308,10 +308,10 @@ ${otherCharsInfo}
 			},
 			/**
 			 * 获取其他角色视角下的该角色设定。
-			 * @param {chatReplyRequest_t} _args - 聊天回复请求。
+			 * @param {chatReplyRequest_t} args - 聊天回复请求。
 			 * @returns {{ text: { content: string, important: number }[], additional_chat_log: never[], extension: object }} 他者视角提示。
 			 */
-			GetPromptForOther: (_args) => ({
+			GetPromptForOther: (args) => ({
 				text: [{
 					content: '萨依拉：一个身负精灵诅咒的扒手少女，拥有窥视人心的匕首和看破真名的能力，却注定孤独。',
 					important: 0

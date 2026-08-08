@@ -25,10 +25,10 @@ export const mindPalaceWorld = {
 		chat: {
 			/**
 			 * 获取记忆宫殿的 Prompt。
-			 * @param {chatReplyRequest_t} _args - 聊天请求参数 (未被使用)。
+			 * @param {chatReplyRequest_t} args - 聊天请求参数 (未被使用)。
 			 * @returns {{text: {content: string, important: number}[]}} - 包含 Prompt 文本的对象。
 			 */
-			GetPrompt: (_args) => {
+			GetPrompt: (args) => {
 				return {
 					text: [
 						{
@@ -73,10 +73,10 @@ export const mindPalaceWebWorld = {
 		chat: {
 			/**
 			 * 获取Web界面的记忆宫殿Prompt。
-			 * @param {chatReplyRequest_t} _args - 聊天请求参数 (未被使用)。
+			 * @param {chatReplyRequest_t} args - 聊天请求参数 (未被使用)。
 			 * @returns {{text: {content: string, important: number}[]}} - 包含 Prompt 文本的对象。
 			 */
-			GetPrompt: (_args) => {
+			GetPrompt: (args) => {
 				return {
 					text: [
 						{
@@ -124,7 +124,7 @@ export const mindPalaceWebWorld = {
  * @type {import('../../../../../../src/decl/PluginAPI.ts').ReplyHandler_t}
  * @returns {Promise<boolean>} 如果处理了任何 mind-thief 标签，则返回 true。
  */
-export async function mindThief({ content }, { AddLongTimeLog, _prompt_struct, _extension, ...args }) {
+export async function mindThief({ content }, { AddLongTimeLog, ...args }) {
 	// 匹配 <mind-thief target="真名">问题</mind-thief>
 	const matches = [...content.matchAll(/<mind-thief\s+target="(?<target>[^"]+)">(?<query>[^]*?)<\/mind-thief>/g)]
 
