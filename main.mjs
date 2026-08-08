@@ -14,7 +14,7 @@ import { buildPromptStruct } from '../../../../../src/public/parts/shells/chat/s
 import { defineToolUseBlocks } from '../../../../../src/public/parts/shells/chat/src/streaming/index.mjs'
 import { getPartInfo } from '../../../../../src/scripts/locale.mjs'
 import { getUserByUsername } from '../../../../../src/server/auth/index.mjs'
-import { loadPart } from '../../../../../src/server/parts_loader.mjs'
+import { loadPart, loadAnyPreferredDefaultPart } from '../../../../../src/server/parts_loader.mjs'
 
 import { mindThief, mindPalaceWebWorld } from './functions/mind-thief.mjs'
 import { palaceGateInline, GetPalaceGatePreviewUpdater } from './functions/palace-gate.mjs'
@@ -204,10 +204,8 @@ export default {
 			 * @returns {Promise<void>}
 			 */
 			SetData: async data => {
-				if ('AIsource' in data)
-					AIsource = data.AIsource
-						? await loadPart(username, 'serviceSources/AI/' + data.AIsource)
-						: null
+				if (data.AIsource) AIsource = await loadPart(username, 'serviceSources/AI/' + data.AIsource)
+				else AIsource = await loadAnyPreferredDefaultPart(username, 'serviceSources/AI')
 				if (data.plugins) plugins = Object.fromEntries(await Promise.all(data.plugins.map(async x => [x, await loadPart(username, 'plugins/' + x)])))
 			}
 		},
